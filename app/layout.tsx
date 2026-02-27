@@ -15,6 +15,10 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 })
 
+// Force server-side rendering on every request so process.env values
+// (set in Portainer at runtime) are read fresh, not captured at build time.
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'Escala Loja',
   description: 'Cronograma de vendedores para domingos e feriados',
