@@ -19,7 +19,10 @@ export async function GET(req: NextRequest) {
   const data: { feriados: { data: string; nome: string; tipo: string }[] } = await res.json()
   const holidays = (data.feriados ?? [])
     .filter((h) => h.tipo === 'MUNICIPAL' || h.tipo === 'ESTADUAL')
-    .map((h) => ({ date: h.data, name: h.nome }))
+    .map((h) => {
+      const [dd, mm, yyyy] = h.data.split('/')
+      return { date: `${yyyy}-${mm}-${dd}`, name: h.nome }
+    })
 
   return NextResponse.json(holidays)
 }
