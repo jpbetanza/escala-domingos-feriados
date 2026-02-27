@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Calendar body -->
+  <rect x="2" y="6" width="28" height="24" rx="3" fill="#2563eb"/>
+  <!-- Calendar header bar -->
+  <rect x="2" y="6" width="28" height="9" rx="3" fill="#1e40af"/>
+  <rect x="2" y="11" width="28" height="4" fill="#1e40af"/>
+  <!-- Calendar pins -->
+  <rect x="9" y="2" width="3" height="8" rx="1.5" fill="#93c5fd"/>
+  <rect x="20" y="2" width="3" height="8" rx="1.5" fill="#93c5fd"/>
+  <!-- Person head -->
+  <circle cx="16" cy="19" r="3.5" fill="white"/>
+  <!-- Person shoulders -->
+  <path d="M9 29 C9 24.5 12 22.5 16 22.5 C20 22.5 23 24.5 23 29" fill="white"/>
+</svg>
