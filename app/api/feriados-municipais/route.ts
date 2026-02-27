@@ -33,8 +33,18 @@ export async function GET(req: NextRequest) {
   const { ano, estado, cidade } = Object.fromEntries(req.nextUrl.searchParams)
   if (!ano || !estado || !cidade) return NextResponse.json([], { status: 400 })
   const url = `https://calendario.com.br/api/data.php?ano=${ano}&estado=${estado}&cidade=${normalizeCity(cidade)}`
-  const res = await fetch(url, { cache: 'no-store' })
+  const res = await fetch(url, {
+    cache: 'no-store',
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Accept': 'text/plain, */*',
+      'Referer': 'https://calendario.com.br/',
+    },
+  })
   const b64 = await res.text()
+  if (b64.includes('<!DOCTYPE') || b64.includes('<html')) {
+    return NextResponse.json([], { status: 503 })
+  }
   const xml = decode(b64)
   return NextResponse.json(parseHolidays(xml))
 }
