@@ -56,7 +56,7 @@ export default function FeriadosPage() {
   const [importMunicipalOpen, setImportMunicipalOpen] = useState(false)
   const [selectedState, setSelectedState] = useState('')
   const [selectedCity, setSelectedCity] = useState('')
-  const [cities, setCities] = useState<string[]>([])
+  const [cities, setCities] = useState<{ id: number; nome: string }[]>([])
   const [citiesLoading, setCitiesLoading] = useState(false)
   const [preview, setPreview] = useState<{ date: string; name: string }[] | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
@@ -106,7 +106,7 @@ export default function FeriadosPage() {
     setCitiesLoading(true)
     try {
       const res = await fetch(`/api/cidades?estado=${state}`)
-      const data: string[] = await res.json()
+      const data: { id: number; nome: string }[] = await res.json()
       setCities(data)
     } catch {
       toast.error('Erro ao carregar cidades.')
@@ -116,14 +116,13 @@ export default function FeriadosPage() {
     }
   }
 
-  async function handleCityChange(city: string) {
-    setSelectedCity(city)
+  async function handleCityChange(city: { id: number; nome: string }) {
+    setSelectedCity(city.nome)
     setPreview(null)
-    if (!city) return
     setPreviewLoading(true)
     try {
       const res = await fetch(
-        `/api/feriados-municipais?ano=${year}&estado=${selectedState}&cidade=${encodeURIComponent(city)}`
+        `/api/feriados-municipais?ano=${year}&ibge=${city.id}`
       )
       const data: { date: string; name: string }[] = await res.json()
       setPreview(data)
@@ -414,8 +413,8 @@ export default function FeriadosPage() {
                       <CommandGroup>
                         {cities.map((c) => (
                           <CommandItem
-                            key={c}
-                            value={c}
+                            key={c.id}
+                            value={c.nome}
                             onSelect={() => {
                               handleCityChange(c)
                               setCityOpen(false)
@@ -424,10 +423,10 @@ export default function FeriadosPage() {
                             <Check
                               className={cn(
                                 'mr-2 h-4 w-4',
-                                selectedCity === c ? 'opacity-100' : 'opacity-0'
+                                selectedCity === c.nome ? 'opacity-100' : 'opacity-0'
                               )}
                             />
-                            {c}
+                            {c.nome}
                           </CommandItem>
                         ))}
                       </CommandGroup>
