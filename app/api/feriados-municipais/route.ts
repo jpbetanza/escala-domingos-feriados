@@ -9,7 +9,7 @@ function decode(b64: string): string {
 }
 
 function normalizeCity(city: string): string {
-  return city.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()
+  return city.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/ /g, '+')
 }
 
 function parseHolidays(xml: string): { date: string; name: string }[] {
