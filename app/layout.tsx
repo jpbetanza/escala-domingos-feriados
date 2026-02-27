@@ -35,16 +35,15 @@ export default function RootLayout({
 
   return (
     <html lang="pt-BR">
-      {/* Inject Supabase config at runtime so the browser client doesn't need
-          NEXT_PUBLIC_ vars baked into the bundle at build time. */}
-      <head>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`} suppressHydrationWarning>
+        {/* First element in <body>: synchronous blocking script that sets
+            window.__supabaseConfig before any React/JS module runs.
+            Values come from server-side env vars at request time (runtime). */}
         <script
           dangerouslySetInnerHTML={{
             __html: `window.__supabaseConfig=${JSON.stringify({ url: supabaseUrl, key: supabaseKey })}`,
           }}
         />
-      </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`} suppressHydrationWarning>
         <AuthProvider>
           <div className="flex min-h-screen">
             <AppSidebar />

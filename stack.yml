@@ -1,0 +1,31 @@
+version: "3.7"
+
+services:
+  escala:
+    image: jpbetanza/escala:latest
+    networks:
+      - network_swarm_public
+    environment:
+      - SUPABASE_URL=https://trnudycmjmexahimvuir.supabase.co
+      - SUPABASE_PUBLISHABLE_DEFAULT_KEY=sb_publishable_imuciNHHD_H9QP2WS17BLQ_T7kmUdVC
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      labels:
+        - "com.centurylinklabs.watchtower.enable=true"
+        - "traefik.enable=true"
+        - "traefik.docker.network=network_swarm_public"
+        - "traefik.http.routers.escala.rule=Host(`escala.aotomatika.com.br`)"
+        - "traefik.http.routers.escala.entrypoints=websecure"
+        - "traefik.http.routers.escala.priority=1"
+        - "traefik.http.routers.escala.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.escala.service=escala"
+        - "traefik.http.services.escala.loadbalancer.server.port=3000"
+
+networks:
+  network_swarm_public:
+    external: true
+    attachable: true
+    name: network_swarm_public
