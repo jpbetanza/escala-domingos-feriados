@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
     `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${estado}/municipios?orderBy=nome`,
     { next: { revalidate: 86400 } }
   )
-  const data: { nome: string }[] = await res.json()
-  const cities = data.map((m) => m.nome)
+  const data: { id: number; nome: string }[] = await res.json()
+  const cities = data.map((m) => ({ id: m.id, nome: m.nome }))
   return NextResponse.json(cities)
 }
