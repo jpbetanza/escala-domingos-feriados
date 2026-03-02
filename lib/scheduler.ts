@@ -4,7 +4,6 @@ import {
   endOfYear,
   isSunday,
   format,
-  parseISO,
 } from 'date-fns'
 import { nanoid } from 'nanoid'
 import { Vendor, Holiday, Schedule, ScheduleEntry } from '@/types'
@@ -15,34 +14,6 @@ function getSundays(year: number): string[] {
     end: endOfYear(new Date(year, 0, 1)),
   })
   return days.filter((d) => isSunday(d)).map((d) => format(d, 'yyyy-MM-dd'))
-}
-
-function assignDates(
-  dates: { date: string; type: 'sunday' | 'holiday'; closed: boolean; note?: string }[],
-  vendors: Vendor[],
-  vendorsPerDay: 2 | 3,
-  initialCounts?: Record<string, number>
-): ScheduleEntry[] {
-  const counts: Record<string, number> = {}
-  for (const v of vendors) counts[v.id] = initialCounts?.[v.id] ?? 0
-
-  return dates.map(({ date, type, closed, note }) => {
-    if (closed) {
-      return { id: nanoid(), date, type, vendorIds: [], closed: true, note }
-    }
-
-    // Sort vendors by count ascending, then by name for stability
-    const sorted = [...vendors].sort((a, b) => {
-      const diff = counts[a.id] - counts[b.id]
-      if (diff !== 0) return diff
-      return a.name.localeCompare(b.name)
-    })
-
-    const chosen = sorted.slice(0, vendorsPerDay).map((v) => v.id)
-    for (const id of chosen) counts[id]++
-
-    return { id: nanoid(), date, type, vendorIds: chosen, closed: false, note }
-  })
 }
 
 export function generateSchedule(
@@ -60,63 +31,124 @@ export function generateSchedule(
   // Extract locked entries from existing schedule
   const lockedEntries = existingSchedule?.entries.filter((e) => e.locked) ?? []
   const lockedDates = new Set(lockedEntries.map((e) => e.date))
+  const lockedMap = new Map(lockedEntries.map((e) => [e.date, e]))
+
+  // Build partialMap: non-locked, non-closed entries with 1+ vendors but fewer than vendorsPerDay
+  const activeIds = new Set(activeVendors.map((v) => v.id))
+  const partialMap = new Map<string, string[]>()
+  if (existingSchedule) {
+    for (const entry of existingSchedule.entries) {
+      if (entry.locked || entry.closed || entry.vendorIds.length === 0) continue
+      const validIds = entry.vendorIds.filter((id) => activeIds.has(id))
+      if (validIds.length > 0 && validIds.length < vendorsPerDay) {
+        partialMap.set(entry.date, validIds)
+      }
+    }
+  }
 
   // Build initial counts from locked entries (separately per type)
-  const lockedSundayCounts: Record<string, number> = {}
-  const lockedHolidayCounts: Record<string, number> = {}
+  const sundayCounts: Record<string, number> = {}
+  const holidayCounts: Record<string, number> = {}
   for (const v of activeVendors) {
-    lockedSundayCounts[v.id] = 0
-    lockedHolidayCounts[v.id] = 0
+    sundayCounts[v.id] = 0
+    holidayCounts[v.id] = 0
   }
   for (const entry of lockedEntries) {
     if (entry.closed) continue
     for (const vid of entry.vendorIds) {
       if (entry.type === 'sunday') {
-        if (lockedSundayCounts[vid] !== undefined) lockedSundayCounts[vid]++
+        if (sundayCounts[vid] !== undefined) sundayCounts[vid]++
       } else {
-        if (lockedHolidayCounts[vid] !== undefined) lockedHolidayCounts[vid]++
+        if (holidayCounts[vid] !== undefined) holidayCounts[vid]++
       }
     }
   }
 
   // Build holiday date set for quick lookup
   const holidayDateMap = new Map(holidays.map((h) => [h.date, h]))
-
-  // Get all sundays
   const allSundays = getSundays(year)
 
-  // Separate: sundays that are NOT holidays, and holidays (which may fall on sundays)
-  // Exclude locked dates from the pools to generate
-  const pureSundays = allSundays.filter((d) => !holidayDateMap.has(d) && !lockedDates.has(d))
+  // Build unified chronological list of all scheduled dates.
+  // A holiday that falls on a Sunday is counted only as a holiday.
+  type DateItem = {
+    date: string
+    type: 'sunday' | 'holiday'
+    note?: string
+    locked: boolean
+  }
+  const allItems: DateItem[] = []
 
-  // Sort holidays by date, excluding locked
-  const sortedHolidays = [...holidays]
-    .filter((h) => !lockedDates.has(h.date))
-    .sort((a, b) => a.date.localeCompare(b.date))
+  for (const date of allSundays) {
+    if (!holidayDateMap.has(date)) {
+      allItems.push({ date, type: 'sunday', locked: lockedDates.has(date) })
+    }
+  }
+  for (const h of holidays) {
+    allItems.push({ date: h.date, type: 'holiday', note: h.name, locked: lockedDates.has(h.date) })
+  }
+  allItems.sort((a, b) => a.date.localeCompare(b.date))
 
-  // Assign sundays independently, seeding counts from locked entries
-  const sundayDates = pureSundays.map((date) => ({
-    date,
-    type: 'sunday' as const,
-    closed: false,
-  }))
-  const sundayEntries = assignDates(sundayDates, activeVendors, vendorsPerDay, lockedSundayCounts)
+  // Process all dates chronologically.
+  // Vendors from the previous date are moved to the back of the candidate list
+  // so the same vendor is never placed on two consecutive dates.
+  // If all available vendors were in the previous date (e.g. very few vendors),
+  // the constraint is relaxed gracefully by falling through to the full list.
+  let lastAssigned = new Set<string>()
+  const entries: ScheduleEntry[] = []
 
-  // Assign holidays independently, seeding counts from locked entries
-  const holidayDates = sortedHolidays.map((h) => ({
-    date: h.date,
-    type: 'holiday' as const,
-    closed: false,
-    note: h.name,
-  }))
-  const holidayEntries = assignDates(holidayDates, activeVendors, vendorsPerDay, lockedHolidayCounts)
+  for (const item of allItems) {
+    if (item.locked) {
+      const lockedEntry = lockedMap.get(item.date)!
+      // Update last-assigned from locked entries so that generated entries
+      // following them also respect the no-consecutive constraint.
+      lastAssigned = lockedEntry.closed ? new Set() : new Set(lockedEntry.vendorIds)
+      entries.push(lockedEntry)
+      continue
+    }
 
-  // Merge locked entries with newly generated ones and sort by date
-  const allEntries = [...lockedEntries, ...sundayEntries, ...holidayEntries].sort((a, b) =>
-    a.date.localeCompare(b.date)
-  )
+    const counts = item.type === 'sunday' ? sundayCounts : holidayCounts
 
-  return { year, vendorsPerDay, entries: allEntries }
+    const byCount = (a: Vendor, b: Vendor) => {
+      const diff = counts[a.id] - counts[b.id]
+      return diff !== 0 ? diff : a.name.localeCompare(b.name)
+    }
+
+    const pinnedIds = partialMap.get(item.date)
+    let chosen: string[]
+
+    if (pinnedIds) {
+      // Pin existing vendors and auto-fill remaining slots
+      const remaining = vendorsPerDay - pinnedIds.length
+      const pinnedSet = new Set(pinnedIds)
+      const candidates = activeVendors.filter((v) => !pinnedSet.has(v.id))
+      const preferred = candidates.filter((v) => !lastAssigned.has(v.id))
+      const fallback = candidates.filter((v) => lastAssigned.has(v.id))
+      const autoChosen = [...preferred.sort(byCount), ...fallback.sort(byCount)]
+        .slice(0, remaining)
+        .map((v) => v.id)
+      chosen = [...pinnedIds, ...autoChosen]
+    } else {
+      // Partition vendors: prefer those NOT in the previous date.
+      const preferred = activeVendors.filter((v) => !lastAssigned.has(v.id))
+      const fallback = activeVendors.filter((v) => lastAssigned.has(v.id))
+      const sorted = [...preferred.sort(byCount), ...fallback.sort(byCount)]
+      chosen = sorted.slice(0, vendorsPerDay).map((v) => v.id)
+    }
+
+    for (const id of chosen) counts[id]++
+    lastAssigned = new Set(chosen)
+
+    entries.push({
+      id: nanoid(),
+      date: item.date,
+      type: item.type,
+      vendorIds: chosen,
+      closed: false,
+      note: item.note,
+    })
+  }
+
+  return { year, vendorsPerDay, entries }
 }
 
 export type VendorStats = {
