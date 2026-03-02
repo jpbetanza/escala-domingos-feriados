@@ -88,6 +88,16 @@ export function generateSchedule(
   }
   allItems.sort((a, b) => a.date.localeCompare(b.date))
 
+  // Deduplicate by date: if the same date appears more than once (e.g. due to
+  // duplicate holiday entries), keep only the first occurrence to avoid pushing
+  // the same locked entry twice and causing a primary-key violation on insert.
+  const seenDates = new Set<string>()
+  const uniqueItems = allItems.filter((item) => {
+    if (seenDates.has(item.date)) return false
+    seenDates.add(item.date)
+    return true
+  })
+
   // Process all dates chronologically.
   // Vendors from the previous date are moved to the back of the candidate list
   // so the same vendor is never placed on two consecutive dates.
@@ -96,7 +106,7 @@ export function generateSchedule(
   let lastAssigned = new Set<string>()
   const entries: ScheduleEntry[] = []
 
-  for (const item of allItems) {
+  for (const item of uniqueItems) {
     if (item.locked) {
       const lockedEntry = lockedMap.get(item.date)!
       // Update last-assigned from locked entries so that generated entries

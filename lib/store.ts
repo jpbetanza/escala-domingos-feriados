@@ -122,6 +122,8 @@ export const useStore = create<AppState>()((set, get) => ({
   async addHoliday(year, holiday) {
     const { userId } = get()
     if (!userId) return
+    const existing = get().holidays[year] ?? []
+    if (existing.some((h) => h.date === holiday.date)) return
     const newHoliday: Holiday = { ...holiday, id: nanoid() }
     set((s) => ({
       holidays: {
