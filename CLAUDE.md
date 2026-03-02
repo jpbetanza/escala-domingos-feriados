@@ -29,9 +29,12 @@ Supabase DB ← lib/supabase/db.ts ← lib/store.ts (Zustand) ← React componen
 
 ### Scheduling algorithm (`lib/scheduler.ts`)
 
-- Sundays and holidays are assigned **independently** using a greedy round-robin sorted by ascending workload count.
+- All dates (sundays + holidays) are merged into a single **chronological** list and processed in one pass.
+- A greedy round-robin assigns vendors sorted by ascending workload count (separate counts for sundays vs holidays to keep per-type balance).
+- **No-consecutive constraint**: vendors from the previous date are moved to the back of the candidate list. If all vendors were in the previous date (too few vendors), the constraint is relaxed gracefully.
 - A holiday that falls on a Sunday is counted only as a `holiday` type (not a sunday).
-- Locked entries are excluded from regeneration but their counts seed the greedy algorithm so balance is maintained.
+- Locked entries are excluded from regeneration but their counts seed the greedy algorithm so balance is maintained. Locked entries also update the no-consecutive state so entries following them respect the constraint.
+- A closed day resets the consecutive state (no constraint on the next date).
 - `computeStats` scores each vendor: sunday = 1 point, holiday = 2 points.
 
 ### Supabase tables
@@ -47,6 +50,13 @@ Google OAuth must be enabled in the Supabase Dashboard. The OAuth callback is ha
 - shadcn/ui components with Tailwind CSS v4. Global styles in `app/globals.css` use `@import "shadcn/tailwind.css"`.
 - Notifications use **sonner** (shadcn toast is deprecated in this project).
 - `AppSidebar` renders a desktop sidebar + a mobile bottom nav bar (main content uses `pb-20 md:pb-0` to clear it).
+- Dark mode is supported via `next-themes`.
+- Forms use **react-hook-form** + **zod** for validation.
+
+### API routes
+
+- `app/api/cidades/route.ts` — proxies the IBGE API to list municipalities by state (cached 24 h).
+- `app/api/feriados-municipais/route.ts` — proxies calendario.com.br to fetch municipal/state holidays; the response is XOR-decoded from base64 before being parsed as XML. Returns holidays of `type_code` 2 or 3 only.
 
 ## Known gotchas
 
