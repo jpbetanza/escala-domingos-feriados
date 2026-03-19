@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useStore } from '@/lib/store'
 import { Loader2 } from 'lucide-react'
@@ -10,6 +10,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setUser, loadUserData, seedDefaultVendors, resetStore, isLoadingData } = useStore()
   const pathname = usePathname()
   const router = useRouter()
+  // Guard against double-seeding when Supabase fires both INITIAL_SESSION and
+  // SIGNED_IN for the same login (e.g. after Google OAuth redirect). Both events
+  // schedule async callbacks concurrently; without this flag both would see an
+  // empty vendor list and insert a duplicate set of default vendors.
+  const isSeedingRef = useRef(false)
 
   const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/auth')
 
@@ -25,7 +30,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setTimeout(async () => {
           await loadUserData(user.id)
           const { vendors } = useStore.getState()
-          if (vendors.length === 0) {
+          if (vendors.length === 0 && !isSeedingRef.current) {
+            isSeedingRef.current = true
             await seedDefaultVendors(user.id)
           }
         }, 0)
