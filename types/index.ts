@@ -8,6 +8,7 @@ export type Holiday = {
   id: string
   date: string // "YYYY-MM-DD"
   name: string
+  type: 'holiday' | 'special'
 }
 
 export type ScheduleEntry = {

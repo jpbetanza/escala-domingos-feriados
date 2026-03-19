@@ -78,7 +78,7 @@ export default function FeriadosPage() {
   async function handleDelete(holiday: Holiday) {
     await removeHoliday(year, holiday.id)
     setDeletingHoliday(undefined)
-    toast.success(`Feriado "${holiday.name}" removido.`)
+    toast.success(`"${holiday.name}" removido.`)
   }
 
   async function handleImportBrazilian() {
@@ -139,7 +139,7 @@ export default function FeriadosPage() {
     const existing = holidays[year] ?? []
     const existingDates = new Set(existing.map((h) => h.date))
     const newCount = preview.filter((h) => !existingDates.has(h.date)).length
-    await addHolidays(year, preview)
+    await addHolidays(year, preview.map((h) => ({ ...h, type: 'holiday' as const })))
     setImportMunicipalOpen(false)
     resetMunicipalDialog()
     if (newCount === 0) {
@@ -154,9 +154,9 @@ export default function FeriadosPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Feriados</h1>
+          <h1 className="text-2xl font-bold">Feriados e Outras Datas</h1>
           <p className="text-muted-foreground text-sm mt-0.5">
-            Gerencie os feriados por ano
+            Gerencie feriados e outras datas por ano
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -200,14 +200,14 @@ export default function FeriadosPage() {
       <div className="border rounded-xl overflow-hidden">
         <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between">
           <h2 className="text-sm font-medium">
-            Feriados de {year} ({yearHolidays.length})
+            Datas de {year} ({yearHolidays.length})
           </h2>
         </div>
 
         {yearHolidays.length === 0 ? (
           <div className="p-8 text-center space-y-3">
             <p className="text-muted-foreground text-sm">
-              Nenhum feriado cadastrado para {year}.
+              Nenhuma data cadastrada para {year}.
             </p>
             <Button variant="outline" onClick={() => setImportConfirm(true)} className="gap-2">
               <Download className="h-4 w-4" />
@@ -229,6 +229,11 @@ export default function FeriadosPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-medium text-sm">{holiday.name}</p>
+                    {holiday.type === 'special' && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        Conta como domingo
+                      </Badge>
+                    )}
                     {fallsOnSunday && (
                       <Badge variant="outline" className="text-[10px]">
                         Domingo
@@ -274,9 +279,9 @@ export default function FeriadosPage() {
       <Dialog open={!!deletingHoliday} onOpenChange={(v) => !v && setDeletingHoliday(undefined)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Remover feriado</DialogTitle>
+            <DialogTitle>Remover {deletingHoliday?.type === 'special' ? 'data' : 'feriado'}</DialogTitle>
             <DialogDescription>
-              Tem certeza que deseja remover o feriado{' '}
+              Tem certeza que deseja remover{' '}
               <strong>{deletingHoliday?.name}</strong> ({deletingHoliday?.date})?
             </DialogDescription>
           </DialogHeader>
@@ -301,9 +306,9 @@ export default function FeriadosPage() {
           <DialogHeader>
             <DialogTitle>Importar feriados nacionais</DialogTitle>
             <DialogDescription>
-              Isso irá substituir todos os feriados de {year} pelos feriados nacionais
-              brasileiros (incluindo Carnaval, Páscoa, Corpus Christi e datas fixas). Deseja
-              continuar?
+              Isso irá substituir os feriados de {year} pelos feriados nacionais
+              brasileiros (incluindo Carnaval, Páscoa, Corpus Christi e datas fixas).
+              Outras datas (que contam como domingo) serão preservadas. Deseja continuar?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

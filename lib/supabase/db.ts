@@ -19,7 +19,7 @@ export async function fetchAllUserData(userId: string): Promise<{
       .eq('user_id', userId),
     supabase
       .from('escala_holidays')
-      .select('id, year, date, name')
+      .select('id, year, date, name, type')
       .eq('user_id', userId),
     supabase
       .from('escala_schedules')
@@ -47,7 +47,7 @@ export async function fetchAllUserData(userId: string): Promise<{
   const holidays: Record<number, Holiday[]> = {}
   for (const r of holidaysRes.data ?? []) {
     if (!holidays[r.year]) holidays[r.year] = []
-    holidays[r.year].push({ id: r.id, date: r.date, name: r.name })
+    holidays[r.year].push({ id: r.id, date: r.date, name: r.name, type: (r.type ?? 'holiday') as Holiday['type'] })
   }
 
   // Build schedules with entries
@@ -135,6 +135,7 @@ export async function dbAddHoliday(userId: string, year: number, holiday: Holida
     year,
     date: holiday.date,
     name: holiday.name,
+    type: holiday.type,
   })
   if (error) throw error
 }
@@ -143,7 +144,7 @@ export async function dbAddHolidays(userId: string, year: number, holidays: Holi
   if (holidays.length === 0) return
   const supabase = createClient()
   const { error } = await supabase.from('escala_holidays').insert(
-    holidays.map((h) => ({ id: h.id, user_id: userId, year, date: h.date, name: h.name }))
+    holidays.map((h) => ({ id: h.id, user_id: userId, year, date: h.date, name: h.name, type: h.type }))
   )
   if (error) throw error
 }
@@ -174,17 +175,18 @@ export async function dbRemoveHoliday(userId: string, id: string): Promise<void>
 
 export async function dbSetHolidays(userId: string, year: number, holidays: Holiday[]): Promise<void> {
   const supabase = createClient()
-  // Delete all for this year, then insert new ones
+  // Delete only holidays (not special dates) for this year, then insert new ones
   const { error: delError } = await supabase
     .from('escala_holidays')
     .delete()
     .eq('user_id', userId)
     .eq('year', year)
+    .eq('type', 'holiday')
   if (delError) throw delError
 
   if (holidays.length > 0) {
     const { error: insError } = await supabase.from('escala_holidays').insert(
-      holidays.map((h) => ({ id: h.id, user_id: userId, year, date: h.date, name: h.name }))
+      holidays.map((h) => ({ id: h.id, user_id: userId, year, date: h.date, name: h.name, type: h.type }))
     )
     if (insError) throw insError
   }

@@ -14,7 +14,7 @@ const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/cronograma', label: 'Cronograma', icon: Calendar },
   { href: '/vendedores', label: 'Vendedores', icon: Users },
-  { href: '/feriados', label: 'Feriados', icon: CalendarDays },
+  { href: '/feriados', label: 'Datas', icon: CalendarDays },
 ]
 
 export function AppSidebar() {

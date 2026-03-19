@@ -216,8 +216,10 @@ export const useStore = create<AppState>()((set, get) => ({
     if (!userId) return
     const prev = get().holidays
     const newHolidays: Holiday[] = holidays.map((h) => ({ ...h, id: nanoid() }))
+    // Preserve special dates when replacing holidays (e.g. national import)
+    const specials = (get().holidays[year] ?? []).filter((h) => h.type === 'special')
     set((s) => ({
-      holidays: { ...s.holidays, [year]: newHolidays },
+      holidays: { ...s.holidays, [year]: [...specials, ...newHolidays] },
     }))
     try {
       await db.dbSetHolidays(userId, year, newHolidays)
