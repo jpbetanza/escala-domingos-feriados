@@ -64,12 +64,15 @@ export function generateSchedule(
     }
   }
 
-  // Build holiday date set for quick lookup
-  const holidayDateMap = new Map(holidays.map((h) => [h.date, h]))
+  // Separate real holidays from special dates (which count as Sundays)
+  const realHolidays = holidays.filter((h) => h.type !== 'special')
+  const specialDates = holidays.filter((h) => h.type === 'special')
+  const holidayDateMap = new Map(realHolidays.map((h) => [h.date, h]))
   const allSundays = getSundays(year)
 
   // Build unified chronological list of all scheduled dates.
   // A holiday that falls on a Sunday is counted only as a holiday.
+  // Special dates count as Sundays (1 point instead of 2).
   type DateItem = {
     date: string
     type: 'sunday' | 'holiday'
@@ -83,8 +86,15 @@ export function generateSchedule(
       allItems.push({ date, type: 'sunday', locked: lockedDates.has(date) })
     }
   }
-  for (const h of holidays) {
+  for (const h of realHolidays) {
     allItems.push({ date: h.date, type: 'holiday', note: h.name, locked: lockedDates.has(h.date) })
+  }
+  // Special dates act as Sundays. If a special date falls on a real holiday,
+  // the holiday takes precedence. Duplicates with real Sundays are handled by dedup.
+  for (const s of specialDates) {
+    if (!holidayDateMap.has(s.date)) {
+      allItems.push({ date: s.date, type: 'sunday', note: s.name, locked: lockedDates.has(s.date) })
+    }
   }
   allItems.sort((a, b) => a.date.localeCompare(b.date))
 

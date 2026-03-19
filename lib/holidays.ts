@@ -73,22 +73,22 @@ export function getBrazilianHolidays(year: number): Omit<Holiday, 'id'>[] {
   const corpusChristi = addDays(easter, 60)
 
   const fixed: Omit<Holiday, 'id'>[] = [
-    { date: `${year}-01-01`, name: 'Ano Novo' },
-    { date: `${year}-04-21`, name: 'Tiradentes' },
-    { date: `${year}-05-01`, name: 'Dia do Trabalho' },
-    { date: `${year}-09-07`, name: 'Independência do Brasil' },
-    { date: `${year}-10-12`, name: 'Nossa Sra. Aparecida' },
-    { date: `${year}-11-02`, name: 'Finados' },
-    { date: `${year}-11-15`, name: 'Proclamação da República' },
-    { date: `${year}-12-25`, name: 'Natal' },
+    { date: `${year}-01-01`, name: 'Ano Novo', type: 'holiday' },
+    { date: `${year}-04-21`, name: 'Tiradentes', type: 'holiday' },
+    { date: `${year}-05-01`, name: 'Dia do Trabalho', type: 'holiday' },
+    { date: `${year}-09-07`, name: 'Independência do Brasil', type: 'holiday' },
+    { date: `${year}-10-12`, name: 'Nossa Sra. Aparecida', type: 'holiday' },
+    { date: `${year}-11-02`, name: 'Finados', type: 'holiday' },
+    { date: `${year}-11-15`, name: 'Proclamação da República', type: 'holiday' },
+    { date: `${year}-12-25`, name: 'Natal', type: 'holiday' },
   ]
 
   const moveable: Omit<Holiday, 'id'>[] = [
-    { date: fmt(carnival1), name: 'Carnaval' },
-    { date: fmt(carnival2), name: 'Carnaval' },
-    { date: fmt(goodFriday), name: 'Sexta-Feira Santa' },
-    { date: fmt(easter), name: 'Páscoa' },
-    { date: fmt(corpusChristi), name: 'Corpus Christi' },
+    { date: fmt(carnival1), name: 'Carnaval', type: 'holiday' },
+    { date: fmt(carnival2), name: 'Carnaval', type: 'holiday' },
+    { date: fmt(goodFriday), name: 'Sexta-Feira Santa', type: 'holiday' },
+    { date: fmt(easter), name: 'Páscoa', type: 'holiday' },
+    { date: fmt(corpusChristi), name: 'Corpus Christi', type: 'holiday' },
   ]
 
   return [...fixed, ...moveable].sort((a, b) => a.date.localeCompare(b.date))
