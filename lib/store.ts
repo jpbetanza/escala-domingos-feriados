@@ -3,6 +3,7 @@ import { AppState, Vendor, Holiday, Schedule, ScheduleEntry } from '@/types'
 import { nanoid } from 'nanoid'
 import { toast } from 'sonner'
 import * as db from './supabase/db'
+import { computeExpectedDates } from './scheduler'
 
 const DEFAULT_VENDOR_SEEDS = [
   { name: 'Matilde' },
@@ -12,6 +13,92 @@ const DEFAULT_VENDOR_SEEDS = [
   { name: 'Léo' },
   { name: 'André' },
 ]
+
+/**
+ * Sync the schedule calendar dates with the current holidays for a given year.
+ * Adds missing entries, removes orphaned holiday entries, and updates types.
+ * Only runs if a schedule already exists for the year.
+ */
+async function _syncScheduleDates(
+  year: number,
+  get: () => AppState,
+  set: (partial: Partial<AppState> | ((s: AppState) => Partial<AppState>)) => void
+) {
+  const { userId, schedules, holidays } = get()
+  if (!userId) return
+  const schedule = schedules[year]
+  if (!schedule) return
+
+  const yearHolidays = holidays[year] ?? []
+  const expected = computeExpectedDates(year, yearHolidays)
+  const expectedMap = new Map(expected.map((e) => [e.date, e]))
+  const existingMap = new Map(schedule.entries.map((e) => [e.date, e]))
+
+  let added = 0
+  let removed = 0
+  let updated = 0
+  const newEntries: ScheduleEntry[] = []
+
+  // Keep or update existing entries
+  for (const entry of schedule.entries) {
+    const exp = expectedMap.get(entry.date)
+    if (!exp) {
+      // Date no longer expected — keep if locked, remove otherwise
+      if (entry.locked) {
+        newEntries.push(entry)
+      } else {
+        removed++
+      }
+      continue
+    }
+    // Date still expected — check if type or note changed
+    if (!entry.locked && (entry.type !== exp.type || entry.note !== exp.note)) {
+      newEntries.push({ ...entry, type: exp.type, note: exp.note })
+      updated++
+    } else {
+      newEntries.push(entry)
+    }
+  }
+
+  // Add new dates not in existing entries
+  for (const exp of expected) {
+    if (!existingMap.has(exp.date)) {
+      newEntries.push({
+        id: nanoid(),
+        date: exp.date,
+        type: exp.type,
+        vendorIds: [],
+        closed: false,
+        note: exp.note,
+      })
+      added++
+    }
+  }
+
+  if (added === 0 && removed === 0 && updated === 0) return
+
+  // Sort chronologically
+  newEntries.sort((a, b) => a.date.localeCompare(b.date))
+
+  const updatedSchedule: Schedule = { ...schedule, entries: newEntries }
+  set((s) => ({ schedules: { ...s.schedules, [year]: updatedSchedule } }))
+  try {
+    await db.dbSetSchedule(userId, year, updatedSchedule)
+  } catch {
+    // Rollback on error
+    set((s) => ({ schedules: { ...s.schedules, [year]: schedule } }))
+    toast.error('Erro ao atualizar cronograma.')
+    return
+  }
+
+  const parts: string[] = []
+  if (added > 0) parts.push(`${added} adicionada(s)`)
+  if (removed > 0) parts.push(`${removed} removida(s)`)
+  if (updated > 0) parts.push(`${updated} atualizada(s)`)
+  toast.success(`Cronograma de ${year} atualizado`, {
+    description: `${parts.join(', ')}.`,
+  })
+}
 
 export const useStore = create<AppState>()((set, get) => ({
   vendors: [],
@@ -133,6 +220,7 @@ export const useStore = create<AppState>()((set, get) => ({
     }))
     try {
       await db.dbAddHoliday(userId, year, newHoliday)
+      await _syncScheduleDates(year, get, set)
     } catch {
       set((s) => ({
         holidays: {
@@ -161,6 +249,7 @@ export const useStore = create<AppState>()((set, get) => ({
     }))
     try {
       await db.dbAddHolidays(userId, year, newOnes)
+      await _syncScheduleDates(year, get, set)
     } catch {
       set((s) => {
         const ids = new Set(newOnes.map((h) => h.id))
@@ -187,6 +276,7 @@ export const useStore = create<AppState>()((set, get) => ({
     }))
     try {
       await db.dbUpdateHoliday(userId, id, data)
+      await _syncScheduleDates(year, get, set)
     } catch {
       set({ holidays: prev })
       toast.error('Erro ao atualizar feriado.')
@@ -205,6 +295,7 @@ export const useStore = create<AppState>()((set, get) => ({
     }))
     try {
       await db.dbRemoveHoliday(userId, id)
+      await _syncScheduleDates(year, get, set)
     } catch {
       set({ holidays: prev })
       toast.error('Erro ao remover feriado.')
@@ -223,6 +314,7 @@ export const useStore = create<AppState>()((set, get) => ({
     }))
     try {
       await db.dbSetHolidays(userId, year, newHolidays)
+      await _syncScheduleDates(year, get, set)
     } catch {
       set({ holidays: prev })
       toast.error('Erro ao importar feriados.')

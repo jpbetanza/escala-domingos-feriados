@@ -8,12 +8,55 @@ import {
 import { nanoid } from 'nanoid'
 import { Vendor, Holiday, Schedule, ScheduleEntry } from '@/types'
 
-function getSundays(year: number): string[] {
+export function getSundays(year: number): string[] {
   const days = eachDayOfInterval({
     start: startOfYear(new Date(year, 0, 1)),
     end: endOfYear(new Date(year, 0, 1)),
   })
   return days.filter((d) => isSunday(d)).map((d) => format(d, 'yyyy-MM-dd'))
+}
+
+export type ExpectedDate = {
+  date: string
+  type: 'sunday' | 'holiday'
+  note?: string
+}
+
+/**
+ * Compute the expected set of schedule dates for a year given its holidays.
+ * Uses the same logic as generateSchedule to determine which dates should exist.
+ */
+export function computeExpectedDates(year: number, holidays: Holiday[]): ExpectedDate[] {
+  const realHolidays = holidays.filter((h) => h.type !== 'special')
+  const specialDates = holidays.filter((h) => h.type === 'special')
+  const holidayDateMap = new Map(realHolidays.map((h) => [h.date, h]))
+  const allSundays = getSundays(year)
+
+  const items: ExpectedDate[] = []
+
+  for (const date of allSundays) {
+    if (!holidayDateMap.has(date)) {
+      items.push({ date, type: 'sunday' })
+    }
+  }
+  for (const h of realHolidays) {
+    items.push({ date: h.date, type: 'holiday', note: h.name })
+  }
+  for (const s of specialDates) {
+    if (!holidayDateMap.has(s.date)) {
+      items.push({ date: s.date, type: 'sunday', note: s.name })
+    }
+  }
+
+  items.sort((a, b) => a.date.localeCompare(b.date))
+
+  // Deduplicate by date
+  const seen = new Set<string>()
+  return items.filter((item) => {
+    if (seen.has(item.date)) return false
+    seen.add(item.date)
+    return true
+  })
 }
 
 export function generateSchedule(
