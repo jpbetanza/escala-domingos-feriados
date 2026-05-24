@@ -5,6 +5,7 @@ import { useStore } from '@/lib/store'
 import { ScheduleTable } from '@/components/schedule-table'
 import { GenerateDialog } from '@/components/generate-dialog'
 import { ExportButton } from '@/components/export-button'
+import { ActiveUserBanner } from '@/components/active-user-banner'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -50,6 +51,8 @@ export default function CronogramaPage() {
 
   return (
     <div className="w-full p-4 md:p-6 max-w-7xl mx-auto space-y-6">
+      <ActiveUserBanner />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>

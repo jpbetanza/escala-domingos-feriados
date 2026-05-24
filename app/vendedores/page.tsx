@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useStore } from '@/lib/store'
 import { VendorForm } from '@/components/vendor-form'
+import { ActiveUserBanner } from '@/components/active-user-banner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Vendor } from '@/types'
@@ -94,6 +95,8 @@ export default function VendedoresPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6">
+      <ActiveUserBanner />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

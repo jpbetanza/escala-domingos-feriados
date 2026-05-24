@@ -66,14 +66,14 @@ export function ScheduleTable({ entries, vendors, year }: Props) {
           const allLocked = monthEntries.every((e) => e.locked)
           return (
             <div key={monthLabel}>
-              <div className="sticky top-0 z-10 bg-primary px-3 py-2 mb-2 rounded-md flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-wider text-primary-foreground">
+              <div className="sticky top-0 z-10 bg-muted px-3 py-2 mb-2 rounded-md flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-wider text-foreground">
                   {monthLabel}
                 </p>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground"
+                  className="h-6 w-6 text-muted-foreground hover:bg-muted-foreground/10 hover:text-foreground"
                   title={allLocked ? 'Destravar mês' : 'Travar mês'}
                   onClick={() =>
                     setEntriesLocked(year, monthEntries.map((e) => e.id), !allLocked)
@@ -184,14 +184,14 @@ export function ScheduleTable({ entries, vendors, year }: Props) {
                   <tr>
                     <td
                       colSpan={6}
-                      className="px-4 py-2.5 bg-primary text-xs font-bold uppercase tracking-wider text-primary-foreground"
+                      className="px-4 py-2.5 bg-muted text-xs font-bold uppercase tracking-wider text-foreground"
                     >
                       <div className="flex items-center justify-between">
                         <span>{monthLabel}</span>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground"
+                          className="h-6 w-6 text-muted-foreground hover:bg-muted-foreground/10 hover:text-foreground"
                           title={allLocked ? 'Destravar mês' : 'Travar mês'}
                           onClick={() =>
                             setEntriesLocked(year, monthEntries.map((e) => e.id), !allLocked)

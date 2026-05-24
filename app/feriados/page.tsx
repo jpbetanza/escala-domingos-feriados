@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useStore } from '@/lib/store'
 import { HolidayForm } from '@/components/holiday-form'
+import { ActiveUserBanner } from '@/components/active-user-banner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Holiday } from '@/types'
@@ -155,6 +156,8 @@ export default function FeriadosPage() {
 
   return (
     <div className="w-full p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+      <ActiveUserBanner />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -235,12 +238,17 @@ export default function FeriadosPage() {
                     <p className="font-medium text-sm">{holiday.name}</p>
                     {holiday.type === 'special' && (
                       <Badge variant="secondary" className="text-[10px]">
-                        Conta como domingo
+                        1 ponto
                       </Badge>
                     )}
-                    {fallsOnSunday && (
+                    {fallsOnSunday && holiday.type === 'holiday' && (
+                      <Badge variant="destructive" className="text-[10px]">
+                        Domingo, vale 2 pontos
+                      </Badge>
+                    )}
+                    {fallsOnSunday && holiday.type === 'special' && (
                       <Badge variant="outline" className="text-[10px]">
-                        Domingo
+                        Domingo especial
                       </Badge>
                     )}
                   </div>

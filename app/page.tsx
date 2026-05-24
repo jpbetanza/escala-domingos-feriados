@@ -5,6 +5,7 @@ import { useStore } from '@/lib/store'
 import { computeStats } from '@/lib/scheduler'
 import { VendorStatsCard } from '@/components/vendor-stats-card'
 import { GenerateDialog } from '@/components/generate-dialog'
+import { ActiveUserBanner } from '@/components/active-user-banner'
 import {
   Select,
   SelectContent,
@@ -35,6 +36,8 @@ export default function DashboardPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+      <ActiveUserBanner />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
