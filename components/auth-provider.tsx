@@ -7,7 +7,7 @@ import { Loader2 } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setUser, loadUserData, seedDefaultVendors, resetStore, isLoadingData } = useStore()
+  const { setUser, loadManageableUsers, loadUserData, seedDefaultVendors, resetStore, isLoadingData } = useStore()
   const pathname = usePathname()
   const router = useRouter()
   // Guard against double-seeding when Supabase fires both INITIAL_SESSION and
@@ -28,7 +28,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Defer DB calls outside the auth lock — calling getSession() inside
         // onAuthStateChange deadlocks because the lock is already held by _initialize
         setTimeout(async () => {
-          await loadUserData(user.id)
+          await loadManageableUsers()
+          const { activeUserId } = useStore.getState()
+          await loadUserData(activeUserId ?? user.id)
           const { vendors } = useStore.getState()
           if (vendors.length === 0 && !isSeedingRef.current) {
             isSeedingRef.current = true

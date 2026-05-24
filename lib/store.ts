@@ -24,8 +24,8 @@ async function _syncScheduleDates(
   get: () => AppState,
   set: (partial: Partial<AppState> | ((s: AppState) => Partial<AppState>)) => void
 ) {
-  const { userId, schedules, holidays } = get()
-  if (!userId) return
+  const { activeUserId, schedules, holidays } = get()
+  if (!activeUserId) return
   const schedule = schedules[year]
   if (!schedule) return
 
@@ -51,8 +51,8 @@ async function _syncScheduleDates(
       }
       continue
     }
-    // Date still expected — check if type or note changed
-    if (!entry.locked && (entry.type !== exp.type || entry.note !== exp.note)) {
+    // Date still expected — keep assignments/locks, but sync calendar metadata.
+    if (entry.type !== exp.type || entry.note !== exp.note) {
       newEntries.push({ ...entry, type: exp.type, note: exp.note })
       updated++
     } else {
@@ -83,7 +83,7 @@ async function _syncScheduleDates(
   const updatedSchedule: Schedule = { ...schedule, entries: newEntries }
   set((s) => ({ schedules: { ...s.schedules, [year]: updatedSchedule } }))
   try {
-    await db.dbSetSchedule(userId, year, updatedSchedule)
+    await db.dbSetSchedule(activeUserId, year, updatedSchedule)
   } catch {
     // Rollback on error
     set((s) => ({ schedules: { ...s.schedules, [year]: schedule } }))
@@ -104,15 +104,57 @@ export const useStore = create<AppState>()((set, get) => ({
   vendors: [],
   holidays: {},
   schedules: {},
-  userId: null,
-  userEmail: null,
-  userAvatar: null,
+  sessionUserId: null,
+  sessionUserEmail: null,
+  sessionUserAvatar: null,
+  activeUserId: null,
+  activeUserEmail: null,
+  activeUserAvatar: null,
+  manageableUsers: [],
+  isAdmin: false,
   isLoadingData: false,
 
   // ── Auth ────────────────────────────────────────────────────────────────────
 
   setUser(userId, email, avatar) {
-    set({ userId, userEmail: email, userAvatar: avatar })
+    set({
+      sessionUserId: userId,
+      sessionUserEmail: email,
+      sessionUserAvatar: avatar,
+      activeUserId: userId,
+      activeUserEmail: email,
+      activeUserAvatar: avatar,
+      manageableUsers: [{ userId, email, avatarUrl: avatar }],
+      isAdmin: false,
+    })
+  },
+
+  async loadManageableUsers() {
+    try {
+      const { users, isAdmin } = await db.fetchManageableUsers()
+      const { sessionUserId, sessionUserEmail, sessionUserAvatar, activeUserId } = get()
+      const fallbackUser =
+        sessionUserId === null
+          ? null
+          : { userId: sessionUserId, email: sessionUserEmail, avatarUrl: sessionUserAvatar }
+      const manageableUsers = users.length > 0 ? users : fallbackUser ? [fallbackUser] : []
+      const activeUser =
+        manageableUsers.find((u) => u.userId === activeUserId) ??
+        manageableUsers.find((u) => u.userId === sessionUserId) ??
+        manageableUsers[0] ??
+        null
+
+      set({
+        manageableUsers,
+        isAdmin,
+        activeUserId: activeUser?.userId ?? sessionUserId,
+        activeUserEmail: activeUser?.email ?? sessionUserEmail,
+        activeUserAvatar: activeUser?.avatarUrl ?? sessionUserAvatar,
+      })
+    } catch (err) {
+      console.error('[loadManageableUsers]', err)
+      toast.error('Erro ao carregar usuários.')
+    }
   },
 
   async loadUserData(userId) {
@@ -135,6 +177,22 @@ export const useStore = create<AppState>()((set, get) => ({
     }
   },
 
+  async switchActiveUser(userId) {
+    const { isAdmin, sessionUserId, manageableUsers } = get()
+    if (!isAdmin && userId !== sessionUserId) return
+
+    const user = manageableUsers.find((u) => u.userId === userId)
+    set({
+      activeUserId: userId,
+      activeUserEmail: user?.email ?? null,
+      activeUserAvatar: user?.avatarUrl ?? null,
+      vendors: [],
+      holidays: {},
+      schedules: {},
+    })
+    await get().loadUserData(userId)
+  },
+
   async seedDefaultVendors(userId) {
     const vendors: Vendor[] = DEFAULT_VENDOR_SEEDS.map((s) => ({
       id: nanoid(),
@@ -154,9 +212,14 @@ export const useStore = create<AppState>()((set, get) => ({
       vendors: [],
       holidays: {},
       schedules: {},
-      userId: null,
-      userEmail: null,
-      userAvatar: null,
+      sessionUserId: null,
+      sessionUserEmail: null,
+      sessionUserAvatar: null,
+      activeUserId: null,
+      activeUserEmail: null,
+      activeUserAvatar: null,
+      manageableUsers: [],
+      isAdmin: false,
       isLoadingData: false,
     })
   },
@@ -164,12 +227,12 @@ export const useStore = create<AppState>()((set, get) => ({
   // ── Vendors ─────────────────────────────────────────────────────────────────
 
   async addVendor(name) {
-    const { userId } = get()
-    if (!userId) return
+    const { activeUserId } = get()
+    if (!activeUserId) return
     const vendor: Vendor = { id: nanoid(), name, active: true }
     set((s) => ({ vendors: [...s.vendors, vendor] }))
     try {
-      await db.dbAddVendor(userId, vendor)
+      await db.dbAddVendor(activeUserId, vendor)
     } catch {
       set((s) => ({ vendors: s.vendors.filter((v) => v.id !== vendor.id) }))
       toast.error('Erro ao salvar vendedor.')
@@ -177,14 +240,14 @@ export const useStore = create<AppState>()((set, get) => ({
   },
 
   async updateVendor(id, data) {
-    const { userId } = get()
-    if (!userId) return
+    const { activeUserId } = get()
+    if (!activeUserId) return
     const prev = get().vendors
     set((s) => ({
       vendors: s.vendors.map((v) => (v.id === id ? { ...v, ...data } : v)),
     }))
     try {
-      await db.dbUpdateVendor(userId, id, data)
+      await db.dbUpdateVendor(activeUserId, id, data)
     } catch {
       set({ vendors: prev })
       toast.error('Erro ao atualizar vendedor.')
@@ -192,12 +255,12 @@ export const useStore = create<AppState>()((set, get) => ({
   },
 
   async removeVendor(id) {
-    const { userId } = get()
-    if (!userId) return
+    const { activeUserId } = get()
+    if (!activeUserId) return
     const prev = get().vendors
     set((s) => ({ vendors: s.vendors.filter((v) => v.id !== id) }))
     try {
-      await db.dbRemoveVendor(userId, id)
+      await db.dbRemoveVendor(activeUserId, id)
     } catch {
       set({ vendors: prev })
       toast.error('Erro ao remover vendedor.')
@@ -207,8 +270,8 @@ export const useStore = create<AppState>()((set, get) => ({
   // ── Holidays ─────────────────────────────────────────────────────────────────
 
   async addHoliday(year, holiday) {
-    const { userId } = get()
-    if (!userId) return
+    const { activeUserId } = get()
+    if (!activeUserId) return
     const existing = get().holidays[year] ?? []
     if (existing.some((h) => h.date === holiday.date)) return
     const newHoliday: Holiday = { ...holiday, id: nanoid() }
@@ -219,7 +282,7 @@ export const useStore = create<AppState>()((set, get) => ({
       },
     }))
     try {
-      await db.dbAddHoliday(userId, year, newHoliday)
+      await db.dbAddHoliday(activeUserId, year, newHoliday)
       await _syncScheduleDates(year, get, set)
     } catch {
       set((s) => ({
@@ -233,8 +296,8 @@ export const useStore = create<AppState>()((set, get) => ({
   },
 
   async addHolidays(year, holidays) {
-    const { userId } = get()
-    if (!userId) return
+    const { activeUserId } = get()
+    if (!activeUserId) return
     const existing = get().holidays[year] ?? []
     const existingDates = new Set(existing.map((h) => h.date))
     const newOnes: Holiday[] = holidays
@@ -248,7 +311,7 @@ export const useStore = create<AppState>()((set, get) => ({
       },
     }))
     try {
-      await db.dbAddHolidays(userId, year, newOnes)
+      await db.dbAddHolidays(activeUserId, year, newOnes)
       await _syncScheduleDates(year, get, set)
     } catch {
       set((s) => {
@@ -265,8 +328,8 @@ export const useStore = create<AppState>()((set, get) => ({
   },
 
   async updateHoliday(year, id, data) {
-    const { userId } = get()
-    if (!userId) return
+    const { activeUserId } = get()
+    if (!activeUserId) return
     const prev = get().holidays
     set((s) => ({
       holidays: {
@@ -275,7 +338,7 @@ export const useStore = create<AppState>()((set, get) => ({
       },
     }))
     try {
-      await db.dbUpdateHoliday(userId, id, data)
+      await db.dbUpdateHoliday(activeUserId, id, data)
       await _syncScheduleDates(year, get, set)
     } catch {
       set({ holidays: prev })
@@ -284,8 +347,8 @@ export const useStore = create<AppState>()((set, get) => ({
   },
 
   async removeHoliday(year, id) {
-    const { userId } = get()
-    if (!userId) return
+    const { activeUserId } = get()
+    if (!activeUserId) return
     const prev = get().holidays
     set((s) => ({
       holidays: {
@@ -294,7 +357,7 @@ export const useStore = create<AppState>()((set, get) => ({
       },
     }))
     try {
-      await db.dbRemoveHoliday(userId, id)
+      await db.dbRemoveHoliday(activeUserId, id)
       await _syncScheduleDates(year, get, set)
     } catch {
       set({ holidays: prev })
@@ -303,8 +366,8 @@ export const useStore = create<AppState>()((set, get) => ({
   },
 
   async setHolidays(year, holidays) {
-    const { userId } = get()
-    if (!userId) return
+    const { activeUserId } = get()
+    if (!activeUserId) return
     const prev = get().holidays
     const newHolidays: Holiday[] = holidays.map((h) => ({ ...h, id: nanoid() }))
     // Preserve special dates when replacing holidays (e.g. national import)
@@ -313,7 +376,7 @@ export const useStore = create<AppState>()((set, get) => ({
       holidays: { ...s.holidays, [year]: [...specials, ...newHolidays] },
     }))
     try {
-      await db.dbSetHolidays(userId, year, newHolidays)
+      await db.dbSetHolidays(activeUserId, year, newHolidays)
       await _syncScheduleDates(year, get, set)
     } catch {
       set({ holidays: prev })
@@ -324,12 +387,12 @@ export const useStore = create<AppState>()((set, get) => ({
   // ── Schedules ────────────────────────────────────────────────────────────────
 
   async setSchedule(year, schedule) {
-    const { userId } = get()
-    if (!userId) return
+    const { activeUserId } = get()
+    if (!activeUserId) return
     const prev = get().schedules
     set((s) => ({ schedules: { ...s.schedules, [year]: schedule } }))
     try {
-      await db.dbSetSchedule(userId, year, schedule)
+      await db.dbSetSchedule(activeUserId, year, schedule)
     } catch {
       set({ schedules: prev })
       toast.error('Erro ao salvar cronograma.')
@@ -337,8 +400,8 @@ export const useStore = create<AppState>()((set, get) => ({
   },
 
   async updateEntry(year, entryId, data) {
-    const { userId } = get()
-    if (!userId) return
+    const { activeUserId } = get()
+    if (!activeUserId) return
     const prev = get().schedules
     set((s) => {
       const schedule = s.schedules[year]
@@ -356,7 +419,7 @@ export const useStore = create<AppState>()((set, get) => ({
       }
     })
     try {
-      await db.dbUpdateEntry(userId, entryId, data)
+      await db.dbUpdateEntry(activeUserId, entryId, data)
     } catch {
       set({ schedules: prev })
       toast.error('Erro ao atualizar entrada.')
@@ -364,8 +427,8 @@ export const useStore = create<AppState>()((set, get) => ({
   },
 
   async setEntriesLocked(year, entryIds, locked) {
-    const { userId } = get()
-    if (!userId) return
+    const { activeUserId } = get()
+    if (!activeUserId) return
     const prev = get().schedules
     const idSet = new Set(entryIds)
     set((s) => {
@@ -384,7 +447,7 @@ export const useStore = create<AppState>()((set, get) => ({
       }
     })
     try {
-      await db.dbSetEntriesLocked(userId, entryIds, locked)
+      await db.dbSetEntriesLocked(activeUserId, entryIds, locked)
     } catch {
       set({ schedules: prev })
       toast.error('Erro ao travar/destravar entradas.')
@@ -392,8 +455,8 @@ export const useStore = create<AppState>()((set, get) => ({
   },
 
   async clearUnlockedVendors(year) {
-    const { userId } = get()
-    if (!userId) return
+    const { activeUserId } = get()
+    if (!activeUserId) return
     const prev = get().schedules
     set((s) => {
       const schedule = s.schedules[year]
@@ -411,7 +474,7 @@ export const useStore = create<AppState>()((set, get) => ({
       }
     })
     try {
-      await db.dbClearUnlockedVendors(userId, year)
+      await db.dbClearUnlockedVendors(activeUserId, year)
     } catch {
       set({ schedules: prev })
       toast.error('Erro ao limpar vendedores.')
@@ -419,15 +482,15 @@ export const useStore = create<AppState>()((set, get) => ({
   },
 
   async removeSchedule(year) {
-    const { userId } = get()
-    if (!userId) return
+    const { activeUserId } = get()
+    if (!activeUserId) return
     const prev = get().schedules
     set((s) => {
       const { [year]: _, ...rest } = s.schedules
       return { schedules: rest }
     })
     try {
-      await db.dbRemoveSchedule(userId, year)
+      await db.dbRemoveSchedule(activeUserId, year)
     } catch {
       set({ schedules: prev })
       toast.error('Erro ao remover cronograma.')

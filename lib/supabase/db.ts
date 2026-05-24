@@ -1,5 +1,5 @@
 import { createClient } from './client'
-import { Vendor, Holiday, Schedule, ScheduleEntry } from '@/types'
+import { Vendor, Holiday, Schedule, ScheduleEntry, ManageableUser } from '@/types'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Fetch all user data in parallel
@@ -74,6 +74,52 @@ export async function fetchAllUserData(userId: string): Promise<{
   }
 
   return { vendors, holidays, schedules }
+}
+
+export async function fetchManageableUsers(): Promise<{
+  users: ManageableUser[]
+  isAdmin: boolean
+}> {
+  const supabase = createClient()
+
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError) throw userError
+  const sessionUser = userData.user
+  if (!sessionUser) return { users: [], isAdmin: false }
+
+  const [adminRes, profilesRes] = await Promise.all([
+    supabase
+      .from('escala_admins')
+      .select('email')
+      .eq('email', sessionUser.email ?? '')
+      .maybeSingle(),
+    supabase
+      .from('escala_user_profiles')
+      .select('user_id, email, avatar_url')
+      .order('email', { ascending: true, nullsFirst: false }),
+  ])
+
+  if (adminRes.error) throw adminRes.error
+  if (profilesRes.error) throw profilesRes.error
+
+  const profileUsers: ManageableUser[] = (profilesRes.data ?? []).map((r) => ({
+    userId: r.user_id,
+    email: r.email,
+    avatarUrl: r.avatar_url,
+  }))
+  const hasSessionProfile = profileUsers.some((u) => u.userId === sessionUser.id)
+  const users = hasSessionProfile
+    ? profileUsers
+    : [
+        ...profileUsers,
+        {
+          userId: sessionUser.id,
+          email: sessionUser.email ?? null,
+          avatarUrl: (sessionUser.user_metadata?.avatar_url as string | undefined) ?? null,
+        },
+      ]
+
+  return { users, isAdmin: adminRes.data !== null }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

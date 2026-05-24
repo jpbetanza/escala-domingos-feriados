@@ -27,19 +27,32 @@ export type Schedule = {
   entries: ScheduleEntry[]
 }
 
+export type ManageableUser = {
+  userId: string
+  email: string | null
+  avatarUrl: string | null
+}
+
 export type AppState = {
   // Data
   vendors: Vendor[]
   holidays: Record<number, Holiday[]>
   schedules: Record<number, Schedule>
   // Auth state
-  userId: string | null
-  userEmail: string | null
-  userAvatar: string | null
+  sessionUserId: string | null
+  sessionUserEmail: string | null
+  sessionUserAvatar: string | null
+  activeUserId: string | null
+  activeUserEmail: string | null
+  activeUserAvatar: string | null
+  manageableUsers: ManageableUser[]
+  isAdmin: boolean
   isLoadingData: boolean
   // Auth actions
   setUser: (userId: string, email: string | null, avatar: string | null) => void
+  loadManageableUsers: () => Promise<void>
   loadUserData: (userId: string) => Promise<void>
+  switchActiveUser: (userId: string) => Promise<void>
   seedDefaultVendors: (userId: string) => Promise<void>
   resetStore: () => void
   // Data actions

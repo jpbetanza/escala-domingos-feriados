@@ -30,13 +30,15 @@ export function computeExpectedDates(year: number, holidays: Holiday[]): Expecte
   const realHolidays = holidays.filter((h) => h.type !== 'special')
   const specialDates = holidays.filter((h) => h.type === 'special')
   const holidayDateMap = new Map(realHolidays.map((h) => [h.date, h]))
+  const specialDateMap = new Map(specialDates.map((h) => [h.date, h]))
   const allSundays = getSundays(year)
 
   const items: ExpectedDate[] = []
 
   for (const date of allSundays) {
     if (!holidayDateMap.has(date)) {
-      items.push({ date, type: 'sunday' })
+      const special = specialDateMap.get(date)
+      items.push({ date, type: 'sunday', note: special?.name })
     }
   }
   for (const h of realHolidays) {
@@ -111,6 +113,7 @@ export function generateSchedule(
   const realHolidays = holidays.filter((h) => h.type !== 'special')
   const specialDates = holidays.filter((h) => h.type === 'special')
   const holidayDateMap = new Map(realHolidays.map((h) => [h.date, h]))
+  const specialDateMap = new Map(specialDates.map((h) => [h.date, h]))
   const allSundays = getSundays(year)
 
   // Build unified chronological list of all scheduled dates.
@@ -126,7 +129,8 @@ export function generateSchedule(
 
   for (const date of allSundays) {
     if (!holidayDateMap.has(date)) {
-      allItems.push({ date, type: 'sunday', locked: lockedDates.has(date) })
+      const special = specialDateMap.get(date)
+      allItems.push({ date, type: 'sunday', note: special?.name, locked: lockedDates.has(date) })
     }
   }
   for (const h of realHolidays) {

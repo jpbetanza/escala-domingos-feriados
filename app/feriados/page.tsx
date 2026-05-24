@@ -138,19 +138,23 @@ export default function FeriadosPage() {
     if (!preview || preview.length === 0) return
     const existing = holidays[year] ?? []
     const existingDates = new Set(existing.map((h) => h.date))
-    const newCount = preview.filter((h) => !existingDates.has(h.date)).length
-    await addHolidays(year, preview.map((h) => ({ ...h, type: 'holiday' as const })))
+    const uniqueByDate = new Map<string, { date: string; name: string }>()
+    for (const holiday of preview) {
+      if (!uniqueByDate.has(holiday.date)) uniqueByDate.set(holiday.date, holiday)
+    }
+    const newHolidays = [...uniqueByDate.values()].filter((h) => !existingDates.has(h.date))
+    await addHolidays(year, newHolidays.map((h) => ({ ...h, type: 'holiday' as const })))
     setImportMunicipalOpen(false)
     resetMunicipalDialog()
-    if (newCount === 0) {
+    if (newHolidays.length === 0) {
       toast.info('Nenhum feriado novo adicionado — todas as datas já existem.')
     } else {
-      toast.success(`${newCount} feriado(s) adicionados para ${year}.`)
+      toast.success(`${newHolidays.length} feriado(s) adicionados para ${year}.`)
     }
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6">
+    <div className="w-full p-4 md:p-6 max-w-5xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>

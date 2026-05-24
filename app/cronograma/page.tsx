@@ -49,7 +49,7 @@ export default function CronogramaPage() {
   }, [schedule, month])
 
   return (
-    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+    <div className="w-full p-4 md:p-6 max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
@@ -101,7 +101,7 @@ export default function CronogramaPage() {
       {!schedule ? (
         <div className="border rounded-xl p-10 text-center space-y-4">
           <p className="text-muted-foreground">
-            Nenhum cronograma gerado para {year}. Clique em "Gerar Cronograma" para começar.
+            Nenhum cronograma gerado para {year}. Clique em &quot;Gerar Cronograma&quot; para começar.
           </p>
           <GenerateDialog defaultYear={year} />
         </div>

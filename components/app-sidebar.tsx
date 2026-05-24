@@ -2,12 +2,13 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, Calendar, Users, CalendarDays, LogOut, UserCircle } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, CalendarDays, LogOut, UserCircle, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useStore } from '@/lib/store'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import Image from 'next/image'
 
 const navItems = [
@@ -20,7 +21,16 @@ const navItems = [
 export function AppSidebar() {
   const pathname = usePathname()
   const router = useRouter()
-  const { userEmail, userAvatar, resetStore } = useStore()
+  const {
+    sessionUserEmail,
+    sessionUserAvatar,
+    activeUserId,
+    activeUserEmail,
+    manageableUsers,
+    isAdmin,
+    switchActiveUser,
+    resetStore,
+  } = useStore()
 
   // Don't render sidebar on auth routes
   if (pathname.startsWith('/login') || pathname.startsWith('/auth')) {
@@ -34,10 +44,62 @@ export function AppSidebar() {
     router.push('/login')
   }
 
+  const isEditingAnotherUser = isAdmin && activeUserEmail && activeUserEmail !== sessionUserEmail
+
+  const accountSummary = (
+    <>
+      {sessionUserEmail && (
+        <div className="flex items-center gap-2 px-2 py-1">
+          {sessionUserAvatar ? (
+            <Image
+              src={sessionUserAvatar}
+              alt="Avatar"
+              width={28}
+              height={28}
+              className="rounded-full flex-shrink-0"
+            />
+          ) : (
+            <div className="h-7 w-7 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+              <span className="text-xs font-medium text-primary">
+                {sessionUserEmail[0].toUpperCase()}
+              </span>
+            </div>
+          )}
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground truncate">{sessionUserEmail}</p>
+            {isEditingAnotherUser && (
+              <p className="text-[11px] text-primary truncate">Editando {activeUserEmail}</p>
+            )}
+          </div>
+        </div>
+      )}
+      {isAdmin && (
+        <div className="space-y-1 px-2">
+          <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+            <Shield className="h-3.5 w-3.5" />
+            Usuário ativo
+          </div>
+          <Select value={activeUserId ?? undefined} onValueChange={(value) => void switchActiveUser(value)}>
+            <SelectTrigger size="sm" className="w-full">
+              <SelectValue placeholder="Selecionar usuário" />
+            </SelectTrigger>
+            <SelectContent>
+              {manageableUsers.map((user) => (
+                <SelectItem key={user.userId} value={user.userId}>
+                  {user.email ?? user.userId}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+    </>
+  )
+
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-56 border-r bg-sidebar min-h-screen sticky top-0">
+      <aside className="hidden md:flex flex-col w-56 shrink-0 border-r bg-sidebar h-screen overflow-y-auto">
         <div className="px-4 py-5 border-b">
           <h1 className="font-bold text-lg text-sidebar-foreground">Escala Loja</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Cronograma de vendedores</p>
@@ -62,26 +124,7 @@ export function AppSidebar() {
 
         {/* User info + sign out */}
         <div className="p-3 border-t space-y-2">
-          {userEmail && (
-            <div className="flex items-center gap-2 px-2 py-1">
-              {userAvatar ? (
-                <Image
-                  src={userAvatar}
-                  alt="Avatar"
-                  width={28}
-                  height={28}
-                  className="rounded-full flex-shrink-0"
-                />
-              ) : (
-                <div className="h-7 w-7 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                  <span className="text-xs font-medium text-primary">
-                    {userEmail[0].toUpperCase()}
-                  </span>
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
-            </div>
-          )}
+          {accountSummary}
           <Button
             variant="ghost"
             size="sm"
@@ -116,8 +159,8 @@ export function AppSidebar() {
         <Popover>
           <PopoverTrigger asChild>
             <button className="flex-1 flex flex-col items-center gap-1 py-2 min-h-[56px] justify-center transition-colors text-muted-foreground">
-              {userAvatar ? (
-                <Image src={userAvatar} alt="Avatar" width={20} height={20} className="rounded-full" />
+              {sessionUserAvatar ? (
+                <Image src={sessionUserAvatar} alt="Avatar" width={20} height={20} className="rounded-full" />
               ) : (
                 <UserCircle className="h-5 w-5" />
               )}
@@ -125,18 +168,7 @@ export function AppSidebar() {
             </button>
           </PopoverTrigger>
           <PopoverContent side="top" align="end" className="w-56 mb-1">
-            {userEmail && (
-              <div className="flex items-center gap-2 pb-3 mb-3 border-b">
-                {userAvatar ? (
-                  <Image src={userAvatar} alt="Avatar" width={32} height={32} className="rounded-full flex-shrink-0" />
-                ) : (
-                  <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                    <span className="text-xs font-medium text-primary">{userEmail[0].toUpperCase()}</span>
-                  </div>
-                )}
-                <p className="text-sm text-muted-foreground truncate">{userEmail}</p>
-              </div>
-            )}
+            <div className="pb-3 mb-3 border-b space-y-2">{accountSummary}</div>
             <Button
               variant="ghost"
               size="sm"

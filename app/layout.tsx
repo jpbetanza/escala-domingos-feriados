@@ -49,9 +49,9 @@ export default function RootLayout({
           }}
         />
         <AuthProvider>
-          <div className="flex min-h-screen">
+          <div className="flex min-h-screen md:h-screen md:overflow-hidden">
             <AppSidebar />
-            <main className="flex-1 pb-20 md:pb-0">{children}</main>
+            <main className="flex-1 min-w-0 pb-20 md:h-screen md:overflow-y-auto md:pb-0">{children}</main>
           </div>
           <Toaster richColors position="top-center" />
         </AuthProvider>
