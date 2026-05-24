@@ -32,20 +32,21 @@ export function computeExpectedDates(year: number, holidays: Holiday[]): Expecte
   const holidayDateMap = new Map(realHolidays.map((h) => [h.date, h]))
   const specialDateMap = new Map(specialDates.map((h) => [h.date, h]))
   const allSundays = getSundays(year)
+  const sundayDateSet = new Set(allSundays)
 
   const items: ExpectedDate[] = []
 
   for (const date of allSundays) {
-    if (!holidayDateMap.has(date)) {
-      const special = specialDateMap.get(date)
-      items.push({ date, type: 'sunday', note: special?.name })
-    }
+    const holiday = holidayDateMap.get(date)
+    const special = specialDateMap.get(date)
+    items.push({ date, type: 'sunday', note: holiday?.name ?? special?.name })
   }
   for (const h of realHolidays) {
+    if (sundayDateSet.has(h.date)) continue
     items.push({ date: h.date, type: 'holiday', note: h.name })
   }
   for (const s of specialDates) {
-    if (!holidayDateMap.has(s.date)) {
+    if (!holidayDateMap.has(s.date) && !sundayDateSet.has(s.date)) {
       items.push({ date: s.date, type: 'sunday', note: s.name })
     }
   }
@@ -115,9 +116,10 @@ export function generateSchedule(
   const holidayDateMap = new Map(realHolidays.map((h) => [h.date, h]))
   const specialDateMap = new Map(specialDates.map((h) => [h.date, h]))
   const allSundays = getSundays(year)
+  const sundayDateSet = new Set(allSundays)
 
   // Build unified chronological list of all scheduled dates.
-  // A holiday that falls on a Sunday is counted only as a holiday.
+  // A holiday that falls on a Sunday is counted only as a Sunday.
   // Special dates count as Sundays (1 point instead of 2).
   type DateItem = {
     date: string
@@ -128,18 +130,22 @@ export function generateSchedule(
   const allItems: DateItem[] = []
 
   for (const date of allSundays) {
-    if (!holidayDateMap.has(date)) {
-      const special = specialDateMap.get(date)
-      allItems.push({ date, type: 'sunday', note: special?.name, locked: lockedDates.has(date) })
-    }
+    const holiday = holidayDateMap.get(date)
+    const special = specialDateMap.get(date)
+    allItems.push({
+      date,
+      type: 'sunday',
+      note: holiday?.name ?? special?.name,
+      locked: lockedDates.has(date),
+    })
   }
   for (const h of realHolidays) {
+    if (sundayDateSet.has(h.date)) continue
     allItems.push({ date: h.date, type: 'holiday', note: h.name, locked: lockedDates.has(h.date) })
   }
-  // Special dates act as Sundays. If a special date falls on a real holiday,
-  // the holiday takes precedence. Duplicates with real Sundays are handled by dedup.
+  // Special dates act as Sundays. Real holidays outside Sundays take precedence.
   for (const s of specialDates) {
-    if (!holidayDateMap.has(s.date)) {
+    if (!holidayDateMap.has(s.date) && !sundayDateSet.has(s.date)) {
       allItems.push({ date: s.date, type: 'sunday', note: s.name, locked: lockedDates.has(s.date) })
     }
   }

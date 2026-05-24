@@ -23,15 +23,17 @@ import { Wand2 } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { generateSchedule } from '@/lib/scheduler'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 type Props = {
   defaultYear?: number
+  triggerClassName?: string
 }
 
 const currentYear = new Date().getFullYear()
 const years = [currentYear - 1, currentYear, currentYear + 1]
 
-export function GenerateDialog({ defaultYear = currentYear }: Props) {
+export function GenerateDialog({ defaultYear = currentYear, triggerClassName }: Props) {
   const [open, setOpen] = useState(false)
   const [year, setYear] = useState(String(defaultYear))
   const [vendorsPerDay, setVendorsPerDay] = useState<'2' | '3'>('2')
@@ -64,7 +66,7 @@ export function GenerateDialog({ defaultYear = currentYear }: Props) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2 min-h-[44px]">
+        <Button className={cn('gap-2 min-h-[44px]', triggerClassName)}>
           <Wand2 className="h-4 w-4" />
           Gerar Cronograma
         </Button>
@@ -108,13 +110,13 @@ export function GenerateDialog({ defaultYear = currentYear }: Props) {
           </div>
 
           {existing && lockedCount === 0 && (
-            <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+            <p className="text-sm text-amber-800 bg-amber-50/70 border border-amber-200 rounded-md px-3 py-2">
               Já existe um cronograma para {year}. Gerar novamente irá substituí-lo.
             </p>
           )}
 
           {existing && lockedCount > 0 && (
-            <p className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-md px-3 py-2">
+            <p className="text-sm text-primary bg-primary/5 border border-primary/20 rounded-md px-3 py-2">
               {lockedCount} data(s) travada(s) serão preservadas. As demais serão redistribuídas.
             </p>
           )}

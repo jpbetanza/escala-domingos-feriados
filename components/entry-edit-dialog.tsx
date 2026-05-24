@@ -68,7 +68,10 @@ export function EntryEditDialog({ entry, year, vendors, open, onClose }: Props) 
         <div className="space-y-4 py-2">
           <div>
             <p className="text-sm font-medium capitalize">{dateStr}</p>
-            <Badge variant={entry.type === 'holiday' ? 'destructive' : 'secondary'} className="mt-1">
+            <Badge
+              variant="secondary"
+              className={cn('mt-1', entry.type === 'holiday' && 'bg-rose-100 text-rose-800')}
+            >
               {entry.type === 'holiday' ? 'Feriado' : 'Domingo'}
             </Badge>
           </div>

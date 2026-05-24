@@ -12,12 +12,14 @@ import { Download, FileSpreadsheet, FileText } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { exportToExcel, exportToPDF } from '@/lib/export'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 type Props = {
   year: number
+  triggerClassName?: string
 }
 
-export function ExportButton({ year }: Props) {
+export function ExportButton({ year, triggerClassName }: Props) {
   const [loading, setLoading] = useState<'pdf' | 'excel' | null>(null)
   const { schedules, vendors } = useStore()
   const schedule = schedules[year]
@@ -52,9 +54,9 @@ export function ExportButton({ year }: Props) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="gap-2 min-h-[44px]" disabled={!!loading}>
+        <Button variant="outline" className={cn('gap-2 min-h-[44px]', triggerClassName)} disabled={!!loading}>
           <Download className="h-4 w-4" />
-          {loading ? 'Exportando...' : 'Exportar'}
+          <span>{loading ? 'Exportando...' : 'Exportar'}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

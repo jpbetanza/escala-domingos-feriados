@@ -32,7 +32,7 @@ Supabase DB ← lib/supabase/db.ts ← lib/store.ts (Zustand) ← React componen
 - All dates (sundays + holidays) are merged into a single **chronological** list and processed in one pass.
 - A greedy round-robin assigns vendors sorted by ascending workload count (separate counts for sundays vs holidays to keep per-type balance).
 - **No-consecutive constraint**: vendors from the previous date are moved to the back of the candidate list. If all vendors were in the previous date (too few vendors), the constraint is relaxed gracefully.
-- A holiday that falls on a Sunday is counted only as a `holiday` type (not a sunday).
+- A holiday that falls on a Sunday is counted only as a `sunday` type (not a holiday).
 - Locked entries are excluded from regeneration but their counts seed the greedy algorithm so balance is maintained. Locked entries also update the no-consecutive state so entries following them respect the constraint.
 - A closed day resets the consecutive state (no constraint on the next date).
 - `computeStats` scores each vendor: sunday = 1 point, holiday = 2 points.

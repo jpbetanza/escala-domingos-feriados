@@ -53,7 +53,7 @@ export default function RootLayout({
             <AppSidebar />
             <main className="flex-1 min-w-0 pb-20 md:h-screen md:overflow-y-auto md:pb-0">{children}</main>
           </div>
-          <Toaster richColors position="top-center" />
+          <Toaster position="top-center" />
         </AuthProvider>
       </body>
     </html>

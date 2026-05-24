@@ -6,6 +6,7 @@ import { computeStats } from '@/lib/scheduler'
 import { VendorStatsCard } from '@/components/vendor-stats-card'
 import { GenerateDialog } from '@/components/generate-dialog'
 import { ActiveUserBanner } from '@/components/active-user-banner'
+import { ExportButton } from '@/components/export-button'
 import {
   Select,
   SelectContent,
@@ -39,16 +40,16 @@ export default function DashboardPage() {
       <ActiveUserBanner />
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground text-sm mt-0.5">
             Visão geral do cronograma de vendedores
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-            <SelectTrigger className="w-28 min-h-[44px]">
+            <SelectTrigger className="w-24 min-h-[44px] sm:w-28">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -59,7 +60,8 @@ export default function DashboardPage() {
               ))}
             </SelectContent>
           </Select>
-          <GenerateDialog defaultYear={year} />
+          <ExportButton year={year} triggerClassName="flex-1 sm:flex-none" />
+          <GenerateDialog defaultYear={year} triggerClassName="flex-1 min-w-[180px] sm:flex-none" />
         </div>
       </div>
 

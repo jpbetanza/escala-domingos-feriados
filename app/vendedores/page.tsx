@@ -68,7 +68,7 @@ export default function VendedoresPage() {
           title={vendor.active ? 'Desativar' : 'Ativar'}
         >
           {vendor.active ? (
-            <ToggleRight className="h-5 w-5 text-green-600" />
+            <ToggleRight className="h-5 w-5 text-primary" />
           ) : (
             <ToggleLeft className="h-5 w-5 text-muted-foreground" />
           )}
