@@ -246,7 +246,7 @@ export async function exportToPDF(schedule: Schedule, vendors: Vendor[]): Promis
   let sy = SY_ROWS_START
   for (const vendor of summaryVendors) {
     const stats = vendorStats[vendor.id]
-    const total = stats.sundays + stats.holidays * 2
+    const total = stats.sundays + stats.holidays
 
     pdf.setFontSize(7)
     pdf.setFont('helvetica', 'normal')
