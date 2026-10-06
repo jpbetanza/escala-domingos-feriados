@@ -14,6 +14,30 @@ const DEFAULT_VENDOR_SEEDS = [
   { name: 'André' },
 ]
 
+// Remembers which user an admin is viewing, so the choice survives a page
+// reload (mobile browsers often discard backgrounded tabs). Keyed by the
+// session user so different accounts on the same device don't collide.
+const ACTIVE_USER_STORAGE_PREFIX = 'escala:activeUserId:'
+
+function readStoredActiveUserId(sessionUserId: string): string | null {
+  try {
+    return localStorage.getItem(ACTIVE_USER_STORAGE_PREFIX + sessionUserId)
+  } catch {
+    return null
+  }
+}
+
+function writeStoredActiveUserId(sessionUserId: string | null, activeUserId: string | null) {
+  if (!sessionUserId) return
+  try {
+    const key = ACTIVE_USER_STORAGE_PREFIX + sessionUserId
+    if (activeUserId && activeUserId !== sessionUserId) localStorage.setItem(key, activeUserId)
+    else localStorage.removeItem(key)
+  } catch {
+    // storage unavailable (private mode etc.) — selection just won't persist
+  }
+}
+
 /**
  * Sync the schedule calendar dates with the current holidays for a given year.
  * Adds missing entries, removes orphaned holiday entries, and updates types.
@@ -117,11 +141,19 @@ export const useStore = create<AppState>()((set, get) => ({
   // ── Auth ────────────────────────────────────────────────────────────────────
 
   setUser(userId, email, avatar) {
+    // Supabase re-emits SIGNED_IN when the tab regains focus; keep the
+    // currently selected user instead of snapping back to the session user.
+    if (get().sessionUserId === userId) {
+      set({ sessionUserEmail: email, sessionUserAvatar: avatar })
+      return
+    }
+    // activeUserId may point to a user restored from storage; it is validated
+    // against the manageable users list in loadManageableUsers.
     set({
       sessionUserId: userId,
       sessionUserEmail: email,
       sessionUserAvatar: avatar,
-      activeUserId: userId,
+      activeUserId: readStoredActiveUserId(userId) ?? userId,
       activeUserEmail: email,
       activeUserAvatar: avatar,
       manageableUsers: [{ userId, email, avatarUrl: avatar }],
@@ -151,8 +183,16 @@ export const useStore = create<AppState>()((set, get) => ({
         activeUserEmail: activeUser?.email ?? sessionUserEmail,
         activeUserAvatar: activeUser?.avatarUrl ?? sessionUserAvatar,
       })
+      writeStoredActiveUserId(sessionUserId, activeUser?.userId ?? sessionUserId)
     } catch (err) {
       console.error('[loadManageableUsers]', err)
+      // Without the list we can't confirm access to a restored user — fall back to self
+      const { sessionUserId, sessionUserEmail, sessionUserAvatar } = get()
+      set({
+        activeUserId: sessionUserId,
+        activeUserEmail: sessionUserEmail,
+        activeUserAvatar: sessionUserAvatar,
+      })
       toast.error('Erro ao carregar usuários.')
     }
   },
@@ -190,6 +230,7 @@ export const useStore = create<AppState>()((set, get) => ({
       holidays: {},
       schedules: {},
     })
+    writeStoredActiveUserId(sessionUserId, userId)
     await get().loadUserData(userId)
   },
 
