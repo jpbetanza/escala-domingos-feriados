@@ -15,6 +15,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // schedule async callbacks concurrently; without this flag both would see an
   // empty vendor list and insert a duplicate set of default vendors.
   const isSeedingRef = useRef(false)
+  // Supabase re-emits SIGNED_IN when the tab becomes visible again (e.g. after
+  // minimizing the browser on mobile). Track which user is already loaded so
+  // those events don't reload data or reset the admin's selected user.
+  const loadedUserIdRef = useRef<string | null>(null)
 
   const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/auth')
 
@@ -24,6 +28,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session?.user) {
         const user = session.user
+        if (loadedUserIdRef.current === user.id) return
+        loadedUserIdRef.current = user.id
         setUser(user.id, user.email ?? null, user.user_metadata?.avatar_url ?? null)
         // Defer DB calls outside the auth lock — calling getSession() inside
         // onAuthStateChange deadlocks because the lock is already held by _initialize
@@ -31,14 +37,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await loadManageableUsers()
           const { activeUserId } = useStore.getState()
           await loadUserData(activeUserId ?? user.id)
-          const { vendors } = useStore.getState()
-          if (vendors.length === 0 && !isSeedingRef.current) {
+          const { vendors, activeUserId: loadedUserId } = useStore.getState()
+          // Only seed the signed-in user's own account, never a user an admin is viewing
+          if (loadedUserId === user.id && vendors.length === 0 && !isSeedingRef.current) {
             isSeedingRef.current = true
             await seedDefaultVendors(user.id)
           }
         }, 0)
       }
       if (event === 'SIGNED_OUT') {
+        loadedUserIdRef.current = null
         resetStore()
         router.push('/login')
       }
