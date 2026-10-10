@@ -18,6 +18,7 @@ import { toast } from 'sonner'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
+import { Minus, Plus } from 'lucide-react'
 
 type Props = {
   entry: ScheduleEntry
@@ -29,19 +30,32 @@ type Props = {
 
 export function EntryEditDialog({ entry, year, vendors, open, onClose }: Props) {
   const { updateEntry } = useStore()
+  const schedule = useStore((s) => s.schedules[year])
+  const vpd = schedule?.vendorsPerDay ?? 2
+  const activeVendors = vendors.filter((v) => v.active)
+
   const [selectedIds, setSelectedIds] = useState<string[]>(entry.vendorIds)
   const [closed, setClosed] = useState(entry.closed)
   const [note, setNote] = useState(entry.note ?? '')
+  const [count, setCount] = useState(
+    entry.vendorsCount ?? Math.max(vpd, entry.vendorIds.length)
+  )
 
-  const maxSel = 3
-  const schedule = useStore((s) => s.schedules[year])
-  const vpd = schedule?.vendorsPerDay ?? 2
+  const maxCount = Math.max(activeVendors.length, count)
+  const isFull = selectedIds.length >= count
+  const isAdjusted = count !== vpd
+
+  function changeCount(next: number) {
+    const clamped = Math.min(maxCount, Math.max(1, next))
+    setCount(clamped)
+    setSelectedIds((prev) => prev.slice(0, clamped))
+  }
 
   function toggleVendor(id: string) {
     if (closed) return
     setSelectedIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id)
-      if (prev.length >= vpd) return [...prev.slice(1), id]
+      if (prev.length >= count) return prev
       return [...prev, id]
     })
   }
@@ -51,6 +65,7 @@ export function EntryEditDialog({ entry, year, vendors, open, onClose }: Props) 
       vendorIds: closed ? [] : selectedIds,
       closed,
       note: note.trim() || undefined,
+      vendorsCount: isAdjusted ? count : undefined,
     })
     toast.success('Entrada atualizada.')
     onClose()
@@ -76,29 +91,97 @@ export function EntryEditDialog({ entry, year, vendors, open, onClose }: Props) 
             </Badge>
           </div>
 
-          <div className="space-y-2">
-            <Label>Vendedores ({selectedIds.length}/{vpd})</Label>
+          <div className={cn('rounded-lg border px-3.5 py-3 space-y-2.5', closed && 'opacity-40')}>
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <p id="vendors-count-label" className="text-sm font-semibold">Vendedores neste dia</p>
+                <p className="text-xs text-muted-foreground">Padrão do ano: {vpd}</p>
+              </div>
+              <div
+                role="group"
+                aria-labelledby="vendors-count-label"
+                className="flex items-center rounded-lg border overflow-hidden"
+              >
+                <button
+                  type="button"
+                  aria-label="Diminuir quantidade"
+                  onClick={() => changeCount(count - 1)}
+                  disabled={closed || count <= 1}
+                  className="h-11 w-11 flex items-center justify-center hover:bg-muted disabled:text-muted-foreground/40 disabled:hover:bg-transparent"
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+                <span aria-live="polite" className="min-w-9 text-center text-base font-semibold tabular-nums">
+                  {count}
+                </span>
+                <button
+                  type="button"
+                  aria-label="Aumentar quantidade"
+                  onClick={() => changeCount(count + 1)}
+                  disabled={closed || count >= maxCount}
+                  className="h-11 w-11 flex items-center justify-center hover:bg-muted disabled:text-muted-foreground/40 disabled:hover:bg-transparent"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            {isAdjusted && !closed && (
+              <div className="flex items-center justify-between gap-2 rounded-md bg-blue-50 px-2.5 py-2 dark:bg-blue-950/40">
+                <p className="text-xs leading-snug text-blue-900 dark:text-blue-200">
+                  Só este dia muda. Ao gerar a escala de novo, ele continua com {count}.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => changeCount(vpd)}
+                  className="shrink-0 min-h-9 px-2.5 rounded text-xs font-semibold text-blue-700 hover:bg-blue-100 dark:text-blue-300 dark:hover:bg-blue-900/40"
+                >
+                  Voltar ao padrão
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2.5">
+            <div className="flex items-baseline justify-between">
+              <Label>Quem trabalha</Label>
+              <span
+                className={cn(
+                  'text-xs font-medium',
+                  selectedIds.length === count ? 'text-green-700 dark:text-green-400' : 'text-muted-foreground'
+                )}
+              >
+                {selectedIds.length} de {count} selecionados
+              </span>
+            </div>
             <div className="flex flex-wrap gap-2">
-              {vendors
-                .filter((v) => v.active)
-                .map((vendor) => (
+              {activeVendors.map((vendor) => {
+                const selected = selectedIds.includes(vendor.id)
+                const blocked = !selected && isFull
+                return (
                   <button
                     key={vendor.id}
                     type="button"
+                    aria-pressed={selected}
                     onClick={() => toggleVendor(vendor.id)}
                     disabled={closed}
                     className={cn(
-                      'px-3 py-1.5 rounded-full text-sm font-medium border transition-colors min-h-[36px]',
-                      selectedIds.includes(vendor.id)
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-background border-border hover:bg-muted',
+                      'px-4 rounded-full text-sm font-medium border transition-colors min-h-[44px]',
+                      selected && 'bg-primary text-primary-foreground border-primary',
+                      !selected && !blocked && 'bg-background border-border hover:bg-muted',
+                      blocked && 'bg-muted/40 text-muted-foreground border-dashed',
                       closed && 'opacity-40 cursor-not-allowed'
                     )}
                   >
                     {vendor.name}
                   </button>
-                ))}
+                )
+              })}
             </div>
+            {isFull && !closed && (
+              <p className="text-xs text-muted-foreground">
+                Lista completa. Desmarque alguém ou aumente a quantidade acima.
+              </p>
+            )}
           </div>
 
           <div className="flex items-center gap-2">

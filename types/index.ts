@@ -19,6 +19,7 @@ export type ScheduleEntry = {
   closed: boolean
   locked?: boolean
   note?: string
+  vendorsCount?: number // overrides Schedule.vendorsPerDay for this date only
 }
 
 export type Schedule = {
