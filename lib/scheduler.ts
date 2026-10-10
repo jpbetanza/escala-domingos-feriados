@@ -79,14 +79,23 @@ export function generateSchedule(
   const lockedDates = new Set(lockedEntries.map((e) => e.date))
   const lockedMap = new Map(lockedEntries.map((e) => [e.date, e]))
 
-  // Build partialMap: non-locked, non-closed entries with 1+ vendors but fewer than vendorsPerDay
+  // Per-date vendor count overrides from non-locked entries (locked ones are kept as-is)
+  const countOverrides = new Map<string, number>()
+  for (const entry of existingSchedule?.entries ?? []) {
+    if (!entry.locked && entry.vendorsCount !== undefined) {
+      countOverrides.set(entry.date, entry.vendorsCount)
+    }
+  }
+  const targetFor = (date: string) => countOverrides.get(date) ?? vendorsPerDay
+
+  // Build partialMap: non-locked, non-closed entries with 1+ vendors but fewer than the date's target
   const activeIds = new Set(activeVendors.map((v) => v.id))
   const partialMap = new Map<string, string[]>()
   if (existingSchedule) {
     for (const entry of existingSchedule.entries) {
       if (entry.locked || entry.closed || entry.vendorIds.length === 0) continue
       const validIds = entry.vendorIds.filter((id) => activeIds.has(id))
-      if (validIds.length > 0 && validIds.length < vendorsPerDay) {
+      if (validIds.length > 0 && validIds.length < targetFor(entry.date)) {
         partialMap.set(entry.date, validIds)
       }
     }
@@ -186,12 +195,13 @@ export function generateSchedule(
       return diff !== 0 ? diff : a.name.localeCompare(b.name)
     }
 
+    const target = targetFor(item.date)
     const pinnedIds = partialMap.get(item.date)
     let chosen: string[]
 
     if (pinnedIds) {
       // Pin existing vendors and auto-fill remaining slots
-      const remaining = vendorsPerDay - pinnedIds.length
+      const remaining = target - pinnedIds.length
       const pinnedSet = new Set(pinnedIds)
       const candidates = activeVendors.filter((v) => !pinnedSet.has(v.id))
       const preferred = candidates.filter((v) => !lastAssigned.has(v.id))
@@ -205,7 +215,7 @@ export function generateSchedule(
       const preferred = activeVendors.filter((v) => !lastAssigned.has(v.id))
       const fallback = activeVendors.filter((v) => lastAssigned.has(v.id))
       const sorted = [...preferred.sort(byCount), ...fallback.sort(byCount)]
-      chosen = sorted.slice(0, vendorsPerDay).map((v) => v.id)
+      chosen = sorted.slice(0, target).map((v) => v.id)
     }
 
     for (const id of chosen) counts[id]++
@@ -218,6 +228,7 @@ export function generateSchedule(
       vendorIds: chosen,
       closed: false,
       note: item.note,
+      vendorsCount: countOverrides.get(item.date),
     })
   }
 

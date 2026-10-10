@@ -35,6 +35,7 @@ Supabase DB ← lib/supabase/db.ts ← lib/store.ts (Zustand) ← React componen
 - A holiday that falls on a Sunday is counted only as a `sunday` type (not a holiday).
 - Locked entries are excluded from regeneration but their counts seed the greedy algorithm so balance is maintained. Locked entries also update the no-consecutive state so entries following them respect the constraint.
 - A closed day resets the consecutive state (no constraint on the next date).
+- `ScheduleEntry.vendorsCount` (column `vendors_count`, NULL = yearly default) overrides `Schedule.vendorsPerDay` for one date. Non-locked entries keep their override across regenerations; it is set from the − / + stepper in `EntryEditDialog`.
 - `computeStats` scores each vendor: sunday = 1 point, holiday = 2 points.
 
 ### Supabase tables

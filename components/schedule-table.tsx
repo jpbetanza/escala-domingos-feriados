@@ -8,7 +8,7 @@ import { EntryEditDialog } from '@/components/entry-edit-dialog'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
-import { ChevronDown, ChevronRight, Lock, LockOpen, Pencil } from 'lucide-react'
+import { ChevronDown, ChevronRight, Lock, LockOpen, Pencil, Users } from 'lucide-react'
 import { useStore } from '@/lib/store'
 
 type Props = {
@@ -134,6 +134,7 @@ export function ScheduleTable({ entries, vendors, year, collapsedMonths, onToggl
                           </div>
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
+                          <VendorsCountBadge entry={entry} />
                           <Badge
                             variant="secondary"
                             className={entry.type === 'holiday' ? 'bg-rose-100 text-rose-800' : undefined}
@@ -271,13 +272,14 @@ export function ScheduleTable({ entries, vendors, year, collapsedMonths, onToggl
                           </div>
                         </div>
                         <div className="text-muted-foreground">{dayLabel}</div>
-                        <div>
+                        <div className="flex flex-wrap items-center gap-1">
                           <Badge
                             variant="secondary"
                             className={entry.type === 'holiday' ? 'bg-rose-100 text-rose-800' : undefined}
                           >
                             {entry.type === 'holiday' ? 'Feriado' : 'Domingo'}
                           </Badge>
+                          <VendorsCountBadge entry={entry} />
                         </div>
                         <div>
                           {entry.closed ? (
@@ -351,5 +353,18 @@ export function ScheduleTable({ entries, vendors, year, collapsedMonths, onToggl
         />
       )}
     </>
+  )
+}
+
+function VendorsCountBadge({ entry }: { entry: ScheduleEntry }) {
+  if (entry.closed || entry.vendorsCount === undefined) return null
+  return (
+    <span
+      title="Quantidade de vendedores ajustada só neste dia"
+      className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-900 dark:bg-blue-950/60 dark:text-blue-200"
+    >
+      <Users className="h-3 w-3" aria-hidden="true" />
+      {entry.vendorsCount} neste dia
+    </span>
   )
 }

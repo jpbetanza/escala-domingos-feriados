@@ -27,7 +27,7 @@ export async function fetchAllUserData(userId: string): Promise<{
       .eq('user_id', userId),
     supabase
       .from('escala_entries')
-      .select('id, year, date, type, vendor_ids, closed, locked, note')
+      .select('id, year, date, type, vendor_ids, closed, locked, note, vendors_count')
       .eq('user_id', userId),
   ])
 
@@ -63,6 +63,7 @@ export async function fetchAllUserData(userId: string): Promise<{
         closed: e.closed,
         locked: e.locked ?? false,
         note: e.note ?? undefined,
+        vendorsCount: e.vendors_count ?? undefined,
       } satisfies ScheduleEntry))
       .sort((a, b) => a.date.localeCompare(b.date))
 
@@ -271,6 +272,7 @@ export async function dbSetSchedule(userId: string, year: number, schedule: Sche
         closed: e.closed,
         locked: e.locked ?? false,
         note: e.note ?? null,
+        vendors_count: e.vendorsCount ?? null,
       }))
     )
     if (insErr) throw insErr
@@ -290,6 +292,7 @@ export async function dbUpdateEntry(
   if (data.note !== undefined) payload.note = data.note ?? null
   if (data.type !== undefined) payload.type = data.type
   if (data.date !== undefined) payload.date = data.date
+  if ('vendorsCount' in data) payload.vendors_count = data.vendorsCount ?? null
 
   const { error } = await supabase
     .from('escala_entries')
