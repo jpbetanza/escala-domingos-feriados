@@ -42,6 +42,8 @@ Supabase DB ← lib/supabase/db.ts ← lib/store.ts (Zustand) ← React componen
 
 Tables are defined in `supabase/migrations/20260227000000_escala_tables.sql`. All tables have RLS enabled; every row is owned by `user_id`. Tables: `escala_vendors`, `escala_holidays`, `escala_schedules`, `escala_entries`.
 
+Migrations in `supabase/migrations/` are applied by the `migrate` job in `.github/workflows/docker.yml` (`supabase db push`) on every push to `main`, before the Docker image is built. It needs the GitHub secrets `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD`. Never apply a migration only via the SQL editor without `supabase migration repair`, or `db push` will try to re-run it.
+
 Required env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY`.
 
 Google OAuth must be enabled in the Supabase Dashboard. The OAuth callback is handled at `app/auth/callback/route.ts`.
