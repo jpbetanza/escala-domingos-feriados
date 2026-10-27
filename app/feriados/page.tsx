@@ -241,11 +241,6 @@ export default function FeriadosPage() {
                         1 ponto
                       </Badge>
                     )}
-                    {fallsOnSunday && holiday.type === 'holiday' && (
-                      <Badge variant="secondary" className="text-[10px]">
-                        Domingo, vale 1 ponto
-                      </Badge>
-                    )}
                     {fallsOnSunday && holiday.type === 'special' && (
                       <Badge variant="outline" className="text-[10px]">
                         Domingo especial
